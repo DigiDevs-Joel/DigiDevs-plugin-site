@@ -1,0 +1,44 @@
+/* assets/css/gymlite.css */
+.gymlite-schedule, .gymlite-calendar, .gymlite-attendance, .gymlite-lead-form, .gymlite-member-profile, .gymlite-signup, .gymlite-booking, .gymlite-portal, .gymlite-referrals, .gymlite-widget-schedule, .gymlite-widget-lead-form, .gymlite-widget-login {
+    margin: 2rem 0;
+}
+
+.gymlite-attendance table, .gymlite-referrals table {
+    width: 100%;
+}
+
+.gymlite-lead-form .uk-form-controls, .gymlite-signup .uk-form-controls, .gymlite-booking .uk-form-controls {
+    margin-bottom: 1rem;
+}
+
+.gymlite-calendar .uk-card-header {
+    background: #1e87f0;
+    color: white;
+}
+
+.gymlite-calendar .uk-card-body {
+    min-height: 150px;
+}
+
+.gymlite-signup .uk-form-stacked, .gymlite-booking .uk-form-stacked {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.gymlite-booking .uk-select, .gymlite-booking .uk-input {
+    width: 100%;
+}
+
+.gymlite-portal .uk-nav {
+    list-style: none;
+}
+
+.gymlite-widget-schedule, .gymlite-widget-lead-form, .gymlite-widget-login {
+    padding: 1rem;
+    background: #f9f9f9;
+    border-radius: 5px;
+}
+
+.gymlite-widget-lead-form input, .gymlite-widget-login input {
+    margin-bottom: 0.5rem;
+}
