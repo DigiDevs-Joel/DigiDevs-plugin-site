@@ -71,20 +71,22 @@ class GymLite_Login {
     }
 
     public function handle_login() {
-        check_ajax_referer('gymlite_login', 'nonce');
-        $username = sanitize_text_field($_POST['username']);
-        $password = $_POST['password']; // Password is not sanitized
-        if (empty($username) || empty($password)) {
-            wp_send_json_error(['message' => __('Username and password are required.', 'gymlite')]);
-        }
-        $creds = ['user_login' => $username, 'user_password' => $password, 'remember' => true];
-        $user = wp_signon($creds, false);
-        if (is_wp_error($user)) {
-            wp_send_json_error(['message' => $user->get_error_message()]);
-        }
-        gymlite_log("User logged in: $username (ID: {$user->ID})");
-        wp_send_json_success(['message' => __('Login successful! Redirecting...', 'gymlite')]);
+    check_ajax_referer('gymlite_login', 'nonce');
+    $username = sanitize_text_field($_POST['username']);
+    $password = $_POST['password']; // Password is not sanitized
+    if (empty($username) || empty($password)) {
+        wp_send_json_error(['message' => __('Username and password are required.', 'gymlite')]);
     }
+    $creds = ['user_login' => $username, 'user_password' => $password, 'remember' => true];
+    $user = wp_signon($creds, false);
+    if (is_wp_error($user)) {
+        wp_send_json_error(['message' => $user->get_error_message()]);
+    }
+    gymlite_log("User logged in: $username (ID: {$user->ID})");
+    // Add this line: Redirect to the member portal or dashboard after success
+    $redirect_url = get_permalink(get_option('gymlite_portal_page_id')) ?: home_url();
+    wp_send_json_success(['message' => __('Login successful! Redirecting...', 'gymlite'), 'redirect' => $redirect_url]);
+}
 
     public function handle_logout() {
         check_ajax_referer('gymlite_nonce', 'nonce');
