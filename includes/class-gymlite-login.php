@@ -17,58 +17,69 @@ class GymLite_Login {
     }
 
     public function login_shortcode($atts) {
-        if (is_user_logged_in()) {
-            return '<p class="uk-text-success">' . __('You are already logged in.', 'gymlite') . '</p><a href="' . wp_logout_url() . '" class="uk-button uk-button-secondary">' . __('Logout', 'gymlite') . '</a>';
-        }
-        ob_start();
-        ?>
-        <div class="gymlite-login uk-section uk-section-small">
-            <div class="uk-container uk-container-small">
-                <h2 class="uk-heading-medium uk-text-center"><?php _e('Login', 'gymlite'); ?></h2>
-                <form id="gymlite-login-form" class="uk-form-stacked">
-                    <div class="uk-margin">
-                        <label class="uk-form-label" for="username"><?php _e('Username or Email', 'gymlite'); ?></label>
-                        <input class="uk-input" type="text" name="username" id="username" required>
-                    </div>
-                    <div class="uk-margin">
-                        <label class="uk-form-label" for="password"><?php _e('Password', 'gymlite'); ?></label>
-                        <input class="uk-input" type="password" name="password" id="password" required>
-                    </div>
-                    <div class="uk-margin">
-                        <button type="submit" class="uk-button uk-button-primary"><?php _e('Login', 'gymlite'); ?></button>
-                    </div>
-                    <?php wp_nonce_field('gymlite_login', 'nonce'); ?>
-                </form>
-                <p class="uk-text-center"><a href="<?php echo get_permalink(get_option('gymlite_signup_page_id')); ?>"><?php _e('Sign up', 'gymlite'); ?></a> | <a href="<?php echo wp_lostpassword_url(); ?>"><?php _e('Forgot password?', 'gymlite'); ?></a></p>
-            </div>
+    if (is_user_logged_in()) {
+        return '<p class="uk-text-success">' . __('You are already logged in.', 'gymlite') . '</p><a href="' . wp_logout_url() . '" class="uk-button uk-button-secondary">' . __('Logout', 'gymlite') . '</a>';
+    }
+    ob_start();
+    ?>
+    <div class="gymlite-login uk-section uk-section-small">
+        <div class="uk-container uk-container-small">
+            <h2 class="uk-heading-medium uk-text-center"><?php _e('Login', 'gymlite'); ?></h2>
+            <form id="gymlite-login-form" class="uk-form-stacked">
+                <div class="uk-margin">
+                    <label class="uk-form-label" for="gymlite-username"><?php _e('Username or Email', 'gymlite'); ?></label>
+                    <input class="uk-input" type="text" name="username" id="gymlite-username" required>
+                </div>
+                <div class="uk-margin">
+                    <label class="uk-form-label" for="gymlite-password"><?php _e('Password', 'gymlite'); ?></label>
+                    <input class="uk-input" type="password" name="password" id="gymlite-password" required>
+                </div>
+                <div class="uk-margin">
+                    <button type="submit" class="uk-button uk-button-primary"><?php _e('Login', 'gymlite'); ?></button>
+                </div>
+                <?php wp_nonce_field('gymlite_login', 'nonce'); ?>
+            </form>
+            <p class="uk-text-center"><a href="<?php echo get_permalink(get_option('gymlite_signup_page_id')); ?>"><?php _e('Sign up', 'gymlite'); ?></a> | <a href="<?php echo wp_lostpassword_url(); ?>"><?php _e('Forgot password?', 'gymlite'); ?></a></p>
         </div>
-        <script>
-            jQuery(document).ready(function($) {
-                $('#gymlite-login-form').on('submit', function(e) {
-                    e.preventDefault();
-                    $.ajax({
-                        url: '<?php echo admin_url('admin-ajax.php'); ?>',
-                        type: 'POST',
-                        data: {
-                            action: 'gymlite_login',
-                            username: $('#username').val(),
-                            password: $('#password').val(),
-                            nonce: $('#nonce').val()
-                        },
-                        success: function(response) {
-                            if (response.success) {
-                                window.location.reload();
+    </div>
+    <script>
+        jQuery(document).ready(function($) {
+            $('#gymlite-login-form').on('submit', function(e) {
+                e.preventDefault();
+                var username = $('#gymlite-username').val();
+                var password = $('#gymlite-password').val();
+                var nonce = $('input[name="nonce"]').val();
+                $.ajax({
+                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                    type: 'POST',
+                    data: {
+                        action: 'gymlite_login',
+                        username: username,
+                        password: password,
+                        nonce: nonce
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            UIkit.notification({message: response.data.message, status: 'success'});
+                            if (response.data.redirect) {
+                                window.location.href = response.data.redirect;
                             } else {
-                                alert(response.data.message);
+                                window.location.reload();
                             }
+                        } else {
+                            UIkit.notification({message: response.data.message, status: 'danger'});
                         }
-                    });
+                    },
+                    error: function(xhr) {
+                        UIkit.notification({message: xhr.responseJSON?.data?.message || '<?php _e('Login failed. Please try again.', 'gymlite'); ?>', status: 'danger'});
+                    }
                 });
             });
-        </script>
-        <?php
-        return ob_get_clean();
-    }
+        });
+    </script>
+    <?php
+    return ob_get_clean();
+}
 
     public function handle_login() {
     check_ajax_referer('gymlite_login', 'nonce');
