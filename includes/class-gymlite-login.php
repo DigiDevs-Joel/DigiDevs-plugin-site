@@ -3,17 +3,14 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/**
- * File: includes/class-gymlite-login.php
- * Description: Handles login functionality for GymLite plugin, integrated with WordPress users.
- */
 class GymLite_Login {
     public function __construct() {
         try {
+            gymlite_log("GymLite_Login constructor started at " . current_time('Y-m-d H:i:s'));
             add_shortcode('gymlite_login', [$this, 'login_shortcode']);
-            add_action('wp_ajax_gymlite_login', [$this, 'handle_login']);
             add_action('wp_ajax_nopriv_gymlite_login', [$this, 'handle_login']);
-            add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
+            add_action('wp_ajax_gymlite_logout', [$this, 'handle_logout']);
+            gymlite_log("GymLite_Login constructor completed at " . current_time('Y-m-d H:i:s'));
         } catch (Exception $e) {
             gymlite_log("Error initializing GymLite_Login: " . $e->getMessage() . " at " . current_time('Y-m-d H:i:s'));
         }
@@ -21,62 +18,79 @@ class GymLite_Login {
 
     public function login_shortcode($atts) {
         if (is_user_logged_in()) {
-            return '<p class="uk-text-success">' . __('You are already logged in.', 'gymlite') . '</p>';
+            return '<p class="uk-text-success">' . __('You are already logged in.', 'gymlite') . '</p><a href="' . wp_logout_url() . '" class="uk-button uk-button-secondary">' . __('Logout', 'gymlite') . '</a>';
         }
-
         ob_start();
         ?>
-        <div class="gymlite-login-section uk-section uk-section-small">
+        <div class="gymlite-login uk-section uk-section-small">
             <div class="uk-container uk-container-small">
-                <h2 class="uk-heading-medium"><?php _e('Member Login', 'gymlite'); ?></h2>
+                <h2 class="uk-heading-medium uk-text-center"><?php _e('Login', 'gymlite'); ?></h2>
                 <form id="gymlite-login-form" class="uk-form-stacked">
                     <div class="uk-margin">
                         <label class="uk-form-label" for="username"><?php _e('Username or Email', 'gymlite'); ?></label>
-                        <div class="uk-form-controls">
-                            <input class="uk-input" type="text" name="username" id="username" required>
-                        </div>
+                        <input class="uk-input" type="text" name="username" id="username" required>
                     </div>
                     <div class="uk-margin">
                         <label class="uk-form-label" for="password"><?php _e('Password', 'gymlite'); ?></label>
-                        <div class="uk-form-controls">
-                            <input class="uk-input" type="password" name="password" id="password" required>
-                        </div>
+                        <input class="uk-input" type="password" name="password" id="password" required>
                     </div>
                     <div class="uk-margin">
                         <button type="submit" class="uk-button uk-button-primary"><?php _e('Login', 'gymlite'); ?></button>
                     </div>
                     <?php wp_nonce_field('gymlite_login', 'nonce'); ?>
                 </form>
-                <p class="uk-text-meta"><?php _e('Don\'t have an account? ', 'gymlite'); ?><a href="<?php echo esc_url(get_permalink(get_option('gymlite_signup_page_id'))); ?>"><?php _e('Sign up here', 'gymlite'); ?></a>.</p>
+                <p class="uk-text-center"><a href="<?php echo get_permalink(get_option('gymlite_signup_page_id')); ?>"><?php _e('Sign up', 'gymlite'); ?></a> | <a href="<?php echo wp_lostpassword_url(); ?>"><?php _e('Forgot password?', 'gymlite'); ?></a></p>
             </div>
         </div>
+        <script>
+            jQuery(document).ready(function($) {
+                $('#gymlite-login-form').on('submit', function(e) {
+                    e.preventDefault();
+                    $.ajax({
+                        url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                        type: 'POST',
+                        data: {
+                            action: 'gymlite_login',
+                            username: $('#username').val(),
+                            password: $('#password').val(),
+                            nonce: $('#nonce').val()
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                window.location.reload();
+                            } else {
+                                alert(response.data.message);
+                            }
+                        }
+                    });
+                });
+            });
+        </script>
         <?php
         return ob_get_clean();
     }
 
     public function handle_login() {
         check_ajax_referer('gymlite_login', 'nonce');
-
-        $creds = [
-            'user_login'    => sanitize_text_field($_POST['username']),
-            'user_password' => $_POST['password'],
-            'remember'      => true,
-        ];
-
+        $username = sanitize_text_field($_POST['username']);
+        $password = $_POST['password']; // Password is not sanitized
+        if (empty($username) || empty($password)) {
+            wp_send_json_error(['message' => __('Username and password are required.', 'gymlite')]);
+        }
+        $creds = ['user_login' => $username, 'user_password' => $password, 'remember' => true];
         $user = wp_signon($creds, false);
-
         if (is_wp_error($user)) {
             wp_send_json_error(['message' => $user->get_error_message()]);
         }
-
-        wp_send_json_success(['message' => __('Logged in successfully! Redirecting...', 'gymlite'), 'redirect' => esc_url(get_permalink(get_option('gymlite_portal_page_id')))]);
+        gymlite_log("User logged in: $username (ID: {$user->ID})");
+        wp_send_json_success(['message' => __('Login successful! Redirecting...', 'gymlite')]);
     }
 
-    public function enqueue_scripts() {
-        wp_enqueue_script('gymlite-login-script', GYMLITE_URL . 'assets/js/login.js', ['jquery', 'uikit'], GYMLITE_VERSION, true);
-        wp_localize_script('gymlite-login-script', 'gymlite_ajax', [
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce'    => wp_create_nonce('gymlite_login'),
-        ]);
+    public function handle_logout() {
+        check_ajax_referer('gymlite_nonce', 'nonce');
+        wp_logout();
+        gymlite_log("User logged out");
+        wp_send_json_success(['message' => __('Logged out successfully.', 'gymlite')]);
     }
 }
+?>

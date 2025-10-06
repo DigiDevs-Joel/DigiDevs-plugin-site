@@ -7,7 +7,6 @@ Author: DigiDevs
 License: GPL-2.0+
 */
 
-// Prevent direct access
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -31,7 +30,7 @@ function gymlite_log($message) {
     }
 }
 
-// Include class files with existence checks
+// Include core class files with existence checks
 $required_files = [
     GYMLITE_DIR . 'includes/class-gymlite-install.php',
     GYMLITE_DIR . 'includes/class-gymlite-admin.php',
@@ -50,40 +49,18 @@ foreach ($required_files as $file) {
     }
 }
 
-// Explicitly instantiate all classes
-if (class_exists('GymLite_Frontend')) {
-    new GymLite_Frontend();
-    gymlite_log("GymLite_Frontend instantiated at " . current_time('Y-m-d H:i:s'));
-}
-if (class_exists('GymLite_Admin')) {
-    new GymLite_Admin();
-    gymlite_log("GymLite_Admin instantiated at " . current_time('Y-m-d H:i:s'));
-}
-if (class_exists('GymLite_Premium')) {
-    new GymLite_Premium();
-    gymlite_log("GymLite_Premium instantiated at " . current_time('Y-m-d H:i:s'));
-}
-if (class_exists('GymLite_Login')) {
-    new GymLite_Login();
-    gymlite_log("GymLite_Login instantiated at " . current_time('Y-m-d H:i:s'));
-}
-if (class_exists('GymLite_Signup')) {
-    new GymLite_Signup();
-    gymlite_log("GymLite_Signup instantiated at " . current_time('Y-m-d H:i:s'));
-}
-if (class_exists('GymLite_User_Data')) {
-    new GymLite_User_Data();
-    gymlite_log("GymLite_User_Data instantiated at " . current_time('Y-m-d H:i:s'));
-}
+// Explicitly instantiate core classes
+if (class_exists('GymLite_Frontend')) new GymLite_Frontend();
+if (class_exists('GymLite_Admin')) new GymLite_Admin();
+if (class_exists('GymLite_Premium')) new GymLite_Premium();
+if (class_exists('GymLite_Login')) new GymLite_Login();
+if (class_exists('GymLite_Signup')) new GymLite_Signup();
+if (class_exists('GymLite_User_Data')) new GymLite_User_Data();
 
 // Activation hook with buffered output
 register_activation_hook(__FILE__, function () {
     ob_start();
     try {
-        ini_set('display_errors', 1);
-        ini_set('display_startup_errors', 1);
-        error_reporting(E_ALL);
-
         if (class_exists('GymLite_Install')) {
             GymLite_Install::activate();
             update_option('gymlite_activated', time());
@@ -92,12 +69,7 @@ register_activation_hook(__FILE__, function () {
             throw new Exception('GymLite_Install class not found.');
         }
     } catch (Exception $e) {
-        $output = ob_get_clean();
-        if (!empty($output)) {
-            echo $output;
-        }
         gymlite_log("Activation failed: " . $e->getMessage() . " at " . current_time('Y-m-d H:i:s'));
-        echo '<div class="error"><p><strong>GymLite Activation Error:</strong> ' . esc_html($e->getMessage()) . '</p></div>';
     }
     ob_end_clean();
 });
@@ -109,7 +81,41 @@ register_deactivation_hook(__FILE__, function () {
     gymlite_log("Plugin deactivated at " . current_time('Y-m-d H:i:s'));
 });
 
-// Initialize plugin
+// Load modular features
+function gymlite_load_features() {
+    $features_dir = GYMLITE_DIR . 'includes/features/';
+    $features = [
+        'class-member-management.php',
+        'class-billing.php',
+        'class-pos.php',
+        'class-scheduling.php',
+        'class-attendance.php',
+        'class-marketing.php',
+        'class-waivers.php',
+        'class-access-control.php',
+        'class-progression.php',
+        'class-reporting.php',
+    ];
+
+    foreach ($features as $feature) {
+        $file = $features_dir . $feature;
+        if (file_exists($file)) {
+            require_once $file;
+            // Dynamically instantiate the class (e.g., GymLite_Member_Management)
+            $class_name = 'GymLite_' . str_replace(['class-', '.php'], ['', ''], ucwords($feature, '-'));
+            $class_name = str_replace('-', '_', $class_name);
+            if (class_exists($class_name)) {
+                new $class_name();
+                gymlite_log("$class_name feature loaded.");
+            }
+        } else {
+            gymlite_log("Missing feature file: $file");
+        }
+    }
+}
+add_action('plugins_loaded', 'gymlite_load_features');
+
+// Initialize core plugin logic
 class GymLite {
     private static $instance = null;
 
@@ -255,31 +261,16 @@ class GymLite {
 
     public function run_daily_tasks() {
         gymlite_log("Starting daily tasks at " . current_time('Y-m-d H:i:s'));
-        if (class_exists('GymLite_Admin') && method_exists('GymLite_Admin', 'billing')) {
-            GymLite_Admin::billing();
-        }
-        if (class_exists('GymLite_Admin') && method_exists('GymLite_Admin', 'send_daily_notifications')) {
-            GymLite_Admin::send_daily_notifications();
-        }
+        // Call feature-specific tasks if needed, e.g., GymLite_Billing::process_daily();
         $this->check_overdues();
-        if (class_exists('GymLite_Premium')) {
-            if (method_exists('GymLite_Premium', 'google_calendar_sync')) {
-                GymLite_Premium::google_calendar_sync();
-            }
-            if (method_exists('GymLite_Premium', 'zoom_integration')) {
-                GymLite_Premium::zoom_integration();
-            }
-        }
         gymlite_log("Completed daily tasks at " . current_time('Y-m-d H:i:s'));
     }
 
     private function check_overdues() {
         global $wpdb;
-        if (isset($wpdb->prefix)) {
-            $table_name = $wpdb->prefix . 'gymlite_recurring';
-            $updated = $wpdb->query("UPDATE $table_name SET status = 'overdue' WHERE next_billing_date < CURDATE() AND status = 'active'");
-            gymlite_log("Checked for overdue payments, updated $updated records at " . current_time('Y-m-d H:i:s'));
-        }
+        $table_name = $wpdb->prefix . 'gymlite_recurring';
+        $updated = $wpdb->query("UPDATE $table_name SET status = 'overdue' WHERE next_billing_date < CURDATE() AND status = 'active'");
+        gymlite_log("Checked overdues, updated $updated records");
     }
 
     private function manual_activate() {
@@ -287,21 +278,17 @@ class GymLite {
             if (class_exists('GymLite_Install')) {
                 GymLite_Install::activate();
                 update_option('gymlite_activated', time());
-                gymlite_log("Manual activation completed at " . current_time('Y-m-d H:i:s'));
-                echo '<div class="notice notice-success"><p>' . __('GymLite activated manually. Tables and pages created.', 'gymlite') . '</p></div>';
-            } else {
-                throw new Exception('GymLite_Install class not found for manual activation.');
+                gymlite_log("Manual activation successful");
             }
         } catch (Exception $e) {
-            gymlite_log("Manual activation failed: " . $e->getMessage() . " at " . current_time('Y-m-d H:i:s'));
-            echo '<div class="notice notice-error"><p>' . __('Manual activation failed: ', 'gymlite') . esc_html($e->getMessage()) . '</p></div>';
+            gymlite_log("Manual activation failed: " . $e->getMessage());
         }
     }
 }
 
-// Init plugin
 if (class_exists('GymLite')) {
     GymLite::init();
 } else {
-    gymlite_log("GymLite class not defined at " . current_time('Y-m-d H:i:s'));
+    gymlite_log("GymLite core class not found");
 }
+?>
