@@ -3,7 +3,7 @@
 Plugin Name: GymLite - Gym Management
 Description: A WordPress plugin with all functions and features of Gymdesk: member management, billing, POS, scheduling, attendance, marketing, waivers, access control, progression tracking, and more.
 Version: 1.7.0
-Author: Your Name
+Author: DigiDevs
 License: GPL-2.0+
 */
 
@@ -16,17 +16,18 @@ if (!defined('ABSPATH')) {
 define('GYMLITE_VERSION', '1.7.0');
 define('GYMLITE_DIR', plugin_dir_path(__FILE__));
 define('GYMLITE_URL', plugin_dir_url(__FILE__));
-define('GYMLITE_DEBUG_LOG', WP_CONTENT_DIR . '/gymlite-debug.log');
 
 // Debug logging function
 function gymlite_log($message) {
     if (defined('WP_DEBUG') && WP_DEBUG && is_writable(WP_CONTENT_DIR)) {
-        $log_file = WP_DEBUG_LOG;
-        if (!file_exists($log_file)) {
-            touch($log_file);
-            chmod($log_file, 0664);
+        if (defined('WP_DEBUG_LOG')) {
+            $log_file = is_string(WP_DEBUG_LOG) ? WP_DEBUG_LOG : WP_CONTENT_DIR . '/debug.log';
+            if (!file_exists($log_file)) {
+                touch($log_file);
+                chmod($log_file, 0664);
+            }
+            error_log(date('[Y-m-d H:i:s] ') . 'GymLite: ' . $message . "\n", 3, $log_file);
         }
-        error_log(date('[Y-m-d H:i:s] ') . 'GymLite: ' . $message . "\n", 3, $log_file);
     }
 }
 
@@ -174,92 +175,27 @@ class GymLite {
             }
         }
         flush_rewrite_rules();
-        gymlite_log("Custom post types registered at " . current_time('Y-m-d H:i:s'));
     }
 
     public function enqueue_scripts() {
-        if (!is_admin()) {
-            if (!wp_style_is('uikit', 'enqueued') && !wp_style_is('uikit', 'registered')) {
-                wp_enqueue_style('uikit', 'https://cdn.jsdelivr.net/npm/uikit@3.21.5/dist/css/uikit.min.css', [], '3.21.5');
-            }
-            if (!wp_script_is('uikit', 'enqueued') && !wp_script_is('uikit', 'registered')) {
-                wp_enqueue_script('uikit', 'https://cdn.jsdelivr.net/npm/uikit@3.21.5/dist/js/uikit.min.js', ['jquery'], '3.21.5', true);
-                wp_enqueue_script('uikit-icons', 'https://cdn.jsdelivr.net/npm/uikit@3.21.5/dist/js/uikit-icons.min.js', ['uikit'], '3.21.5', true);
-            }
-
-            wp_enqueue_style('gymlite-style', GYMLITE_URL . 'assets/css/gymlite.css', [], GYMLITE_VERSION);
-            wp_enqueue_script('gymlite-script', GYMLITE_URL . 'assets/js/frontend.js', ['jquery', 'uikit'], GYMLITE_VERSION, true);
-
-            $js = '
-                jQuery(document).ready(function($) {
-                    $(".gymlite-checkin").on("click", function(e) {
-                        e.preventDefault();
-                        var classId = $(this).data("class-id");
-                        $.ajax({
-                            url: gymlite_ajax.ajax_url,
-                            type: "POST",
-                            data: {action: "gymlite_checkin", class_id: classId, nonce: gymlite_ajax.nonce},
-                            success: function(response) { 
-                                UIkit.notification({message: response.data.message, status: "success"}); 
-                                $(this).replaceWith(\'<span class="uk-label uk-label-success">Checked In</span>\'); 
-                            },
-                            error: function(xhr) { UIkit.notification({message: xhr.responseJSON?.data?.message || "Check-in failed", status: "danger"}); }
-                        });
-                    });
-                    $(".gymlite-sign-waiver").on("click", function() {
-                        var waiverId = $(this).data("waiver-id");
-                        var signature = prompt("' . __('Enter your signature (e.g., initials)', 'gymlite') . '");
-                        if (signature) {
-                            $.ajax({
-                                url: gymlite_ajax.ajax_url,
-                                type: "POST",
-                                data: {action: "gymlite_sign_waiver", waiver_id: waiverId, signature: signature, nonce: gymlite_ajax.nonce},
-                                success: function(response) { UIkit.notification({message: response.data.message, status: "success"}); },
-                                error: function(xhr) { UIkit.notification({message: xhr.responseJSON?.data?.message || "' . __('Waiver signing failed', 'gymlite') . '", status: "danger"}); }
-                            });
-                        }
-                    });
-                    $(".gymlite-log-access").on("click", function() {
-                        $.ajax({
-                            url: gymlite_ajax.ajax_url,
-                            type: "POST",
-                            data: {action: "gymlite_log_access", nonce: gymlite_ajax.nonce},
-                            success: function(response) { UIkit.notification({message: response.data.message, status: "success"}); },
-                            error: function(xhr) { UIkit.notification({message: xhr.responseJSON?.data?.message || "' . __('Access log failed', 'gymlite') . '", status: "danger"}); }
-                        });
-                    });
-                    $(".gymlite-promote-member").on("click", function() {
-                        var memberId = $(this).data("member-id");
-                        var level = prompt("' . __('Enter new level (e.g., blue belt)', 'gymlite') . '");
-                        if (level) {
-                            $.ajax({
-                                url: gymlite_ajax.ajax_url,
-                                type: "POST",
-                                data: {action: "gymlite_promote_member", member_id: memberId, level: level, nonce: gymlite_ajax.nonce},
-                                success: function(response) { UIkit.notification({message: response.data.message, status: "success"}); },
-                                error: function(xhr) { UIkit.notification({message: xhr.responseJSON?.data?.message || "' . __('Promotion failed', 'gymlite') . '", status: "danger"}); }
-                            });
-                        }
-                    });
-                });
-            ';
-            wp_add_inline_script('gymlite-script', $js);
-            wp_localize_script('gymlite-script', 'gymlite_ajax', [
-                'ajax_url' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('gymlite_nonce'),
-            ]);
-        }
+        wp_enqueue_style('uikit', GYMLITE_URL . 'assets/css/uikit.min.css', [], GYMLITE_VERSION);
+        wp_enqueue_script('uikit', GYMLITE_URL . 'assets/js/uikit.min.js', ['jquery'], GYMLITE_VERSION, true);
+        wp_enqueue_script('uikit-icons', GYMLITE_URL . 'assets/js/uikit-icons.min.js', ['uikit'], GYMLITE_VERSION, true);
     }
 
-    public function enqueue_admin_scripts($hook) {
-        if (strpos($hook, 'gymlite') === false) return;
-        wp_enqueue_style('gymlite-admin-style', GYMLITE_URL . 'assets/css/gymlite-admin.css', [], GYMLITE_VERSION);
+    public function enqueue_admin_scripts() {
+        wp_enqueue_style('gymlite-admin', GYMLITE_URL . 'assets/css/admin.css', [], GYMLITE_VERSION);
+        wp_enqueue_script('gymlite-admin', GYMLITE_URL . 'assets/js/admin.js', ['jquery', 'uikit'], GYMLITE_VERSION, true);
+        wp_localize_script('gymlite-admin', 'gymlite_admin', [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('gymlite_nonce'),
+        ]);
     }
 
     public function add_settings_menu() {
         add_submenu_page(
             'gymlite',
-            __('GymLite Settings', 'gymlite'),
+            __('Settings', 'gymlite'),
             __('Settings', 'gymlite'),
             'manage_options',
             'gymlite-settings',
