@@ -20,17 +20,18 @@ class GymLite_Frontend {
     }
 
     public function enqueue_frontend_scripts() {
-        wp_enqueue_style('uikit', GYMLITE_URL . 'assets/css/uikit.min.css', [], GYMLITE_VERSION);
-        wp_enqueue_script('uikit', GYMLITE_URL . 'assets/js/uikit.min.js', ['jquery'], GYMLITE_VERSION, true);
-        wp_enqueue_script('uikit-icons', GYMLITE_URL . 'assets/js/uikit-icons.min.js', ['uikit'], GYMLITE_VERSION, true);
-        wp_enqueue_style('gymlite-frontend', GYMLITE_URL . 'assets/css/frontend.css', [], GYMLITE_VERSION);
-        wp_enqueue_script('gymlite-frontend', GYMLITE_URL . 'assets/js/frontend.js', ['jquery', 'uikit'], GYMLITE_VERSION, true);
-        wp_localize_script('gymlite-frontend', 'gymlite_ajax', [
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('gymlite_nonce'),
-        ]);
-        gymlite_log("Frontend scripts and styles enqueued.");
-    }
+    wp_enqueue_style('uikit', GYMLITE_URL . 'assets/css/uikit.min.css', [], GYMLITE_VERSION);
+    wp_enqueue_script('uikit', GYMLITE_URL . 'assets/js/uikit.min.js', ['jquery'], GYMLITE_VERSION, true);
+    wp_enqueue_script('uikit-icons', GYMLITE_URL . 'assets/js/uikit-icons.min.js', ['uikit'], GYMLITE_VERSION, true);
+    wp_enqueue_style('gymlite-frontend', GYMLITE_URL . 'assets/css/gymlite.css', [], GYMLITE_VERSION); // Fixed path to match your file
+    wp_enqueue_script('gymlite-frontend', GYMLITE_URL . 'assets/js/frontend.js', ['jquery', 'uikit'], GYMLITE_VERSION, true);
+    wp_localize_script('gymlite-frontend', 'gymlite_ajax', [
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('gymlite_nonce'),
+    ]);
+    gymlite_log("Frontend scripts and styles enqueued.");
+	wp_enqueue_script('gymlite-login', GYMLITE_URL . 'assets/js/login.js', ['jquery', 'uikit'], GYMLITE_VERSION, true);
+}
 
     public function register_shared_shortcodes() {
         // Register any shortcodes that are not feature-specific, e.g., a global dashboard or utility

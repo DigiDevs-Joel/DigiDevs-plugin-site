@@ -37,7 +37,7 @@ class GymLite_Login {
                 <div class="uk-margin">
                     <button type="submit" class="uk-button uk-button-primary"><?php _e('Login', 'gymlite'); ?></button>
                 </div>
-                <?php wp_nonce_field('gymlite_nonce', 'nonce'); ?>
+                <?php wp_nonce_field('gymlite_login', 'nonce'); // Fixed nonce action to match handler ?>
             </form>
             <p class="uk-text-center"><a href="<?php echo get_permalink(get_option('gymlite_signup_page_id')); ?>"><?php _e('Sign up', 'gymlite'); ?></a> | <a href="<?php echo wp_lostpassword_url(); ?>"><?php _e('Forgot password?', 'gymlite'); ?></a></p>
         </div>
@@ -49,6 +49,7 @@ class GymLite_Login {
                 var username = $('#gymlite-username').val();
                 var password = $('#gymlite-password').val();
                 var nonce = $('input[name="nonce"]').val();
+                console.log('Submitting login with nonce:', nonce); // Debug: Check console for nonce value
                 $.ajax({
                     url: '<?php echo admin_url('admin-ajax.php'); ?>',
                     type: 'POST',
@@ -59,20 +60,20 @@ class GymLite_Login {
                         nonce: nonce
                     },
                     success: function(response) {
-                        console.log('AJAX Success Response:', response); // Debug: Check console for response details
+                        console.log('AJAX Success Response:', response); // Debug: Full response in console
                         if (response.success) {
                             UIkit.notification({message: response.data.message, status: 'success'});
                             if (response.data.redirect) {
                                 window.location.href = response.data.redirect;
                             } else {
-                                window.location.reload(); // Fallback if no redirect URL
+                                window.location.reload(); // Fallback reload to show logged-in state
                             }
                         } else {
-                            UIkit.notification({message: response.data.message || '<?php _e('Login failed. Check credentials.', 'gymlite'); ?>', status: 'danger'});
+                            UIkit.notification({message: response.data.message || '<?php _e('Login failed. Check your credentials.', 'gymlite'); ?>', status: 'danger'});
                         }
                     },
                     error: function(xhr) {
-                        console.log('AJAX Error:', xhr); // Debug: Check console for errors
+                        console.log('AJAX Error:', xhr.responseText); // Debug: Error details in console
                         UIkit.notification({message: xhr.responseJSON?.data?.message || '<?php _e('An error occurred. Please try again.', 'gymlite'); ?>', status: 'danger'});
                     }
                 });
