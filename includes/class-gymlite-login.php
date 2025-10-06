@@ -37,7 +37,7 @@ class GymLite_Login {
                 <div class="uk-margin">
                     <button type="submit" class="uk-button uk-button-primary"><?php _e('Login', 'gymlite'); ?></button>
                 </div>
-                <?php wp_nonce_field('gymlite_login', 'nonce'); ?>
+                <?php wp_nonce_field('gymlite_nonce', 'nonce'); ?>
             </form>
             <p class="uk-text-center"><a href="<?php echo get_permalink(get_option('gymlite_signup_page_id')); ?>"><?php _e('Sign up', 'gymlite'); ?></a> | <a href="<?php echo wp_lostpassword_url(); ?>"><?php _e('Forgot password?', 'gymlite'); ?></a></p>
         </div>
@@ -59,19 +59,21 @@ class GymLite_Login {
                         nonce: nonce
                     },
                     success: function(response) {
+                        console.log('AJAX Success Response:', response); // Debug: Check console for response details
                         if (response.success) {
                             UIkit.notification({message: response.data.message, status: 'success'});
                             if (response.data.redirect) {
                                 window.location.href = response.data.redirect;
                             } else {
-                                window.location.reload();
+                                window.location.reload(); // Fallback if no redirect URL
                             }
                         } else {
-                            UIkit.notification({message: response.data.message, status: 'danger'});
+                            UIkit.notification({message: response.data.message || '<?php _e('Login failed. Check credentials.', 'gymlite'); ?>', status: 'danger'});
                         }
                     },
                     error: function(xhr) {
-                        UIkit.notification({message: xhr.responseJSON?.data?.message || '<?php _e('Login failed. Please try again.', 'gymlite'); ?>', status: 'danger'});
+                        console.log('AJAX Error:', xhr); // Debug: Check console for errors
+                        UIkit.notification({message: xhr.responseJSON?.data?.message || '<?php _e('An error occurred. Please try again.', 'gymlite'); ?>', status: 'danger'});
                     }
                 });
             });
